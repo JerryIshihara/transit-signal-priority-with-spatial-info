@@ -6,27 +6,20 @@
 ### Table of Contents
 
 - [Environment Setup](#environment-setup)
-- [Model](./model)
 - [Training](#training)
 
 ### Environment Setup
 - Python 3.* is installed
-- Set permission
+- Install dependencies
 ```
-chmod 700 bin/bootstrap
-```
-- Run the bootstrap for installing the requirements
-```
-bin/bootstrap
+pip install -r requirements.txt
 ```
 
 ### Training
 - After installing all the requirements, run the following command for trainig
 ```
-python train.py -d -gpu -model MODEL_NAME
+python train.py -env cartpole
 ```
-- `-d`: debug mode, default is `False`
-- `-gpu`: train on GPU, default is on `CPU`
-- `model`: REQURIED, all the available models are in the folder `model/`, simply input the name of the model file.<br /> (eg. `-model baseline` for model `baseline.py`)
+- `-env`: (REQUIRED) RL Environment, availables are `[cartpole, aimsun]`. `aimsun` requires simulation software and data collecting scripts
 
 
