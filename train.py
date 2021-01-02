@@ -2,7 +2,7 @@ import os
 import time
 
 from model import CNN, DQN
-from env import CartPoleEnv
+from environment import CartPoleEnv
 import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("-env", "--env", help="DQN Environment")
