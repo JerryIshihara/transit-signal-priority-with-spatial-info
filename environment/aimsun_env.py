@@ -88,11 +88,11 @@ class AimsunEnv:
                 with open(self.ACTION_LOG, "w+") as f:
                     f.write("{} {}".format(index, uuid4().int))
                     is_written = True
-                conn.send(b'WRITE_ACTION')
+                conn.send(b'WRITE_ACTION:{}'.format("EXTEND" if index == 0 else "NOTHING"))
             except:
                 continue
 
-    def _get_state(self, conn, replication):
+    def _get_state(self, conn):
         """Read the state of the replication.
         - Get DQN number of input channels: self.num_channels
         the returned state size is (num_channels, height, width)
@@ -102,19 +102,19 @@ class AimsunEnv:
         -------
         numpy array with size (num_channels, height, width)
         """
-        conn.send(b"GET_STATE")
-
+        conn.send(b'GET_STATE')
         data = conn.recv(1024).decode("utf-8")
-        if(len(data) < 10 or data[:10] != 'DATA_READY'):
+        if(data == 'FIN'):
+            print("FIN Received")
+            raise Exception
+        elif(data[:10] != 'DATA_READY'):
             print("ERROR")
-        else:
-            time = data[10:]
-            feature = np.load('realtime_state.npy')
-            print("Time: " + time)
-        pass
-        # while True:
-        #     break
-        # return S_
+            raise Exception
+        time = data[10:]
+        state = np.load('realtime_state.npy')
+        return state, time
+            # print(state.shape)
+            # print("Time: " + time)
 
     def step(self, conn, action_index):
         """Apply the write the action to Aimsun and wait for the new
@@ -173,52 +173,77 @@ class AimsunEnv:
             print("[Info] Aimsun Instance connected.")
             return True, conn
 
-    def train_aimsun(self, DQN, start_rep, end_rep):
+    def train_aimsun(self, DQN, start_rep, end_rep, AIMSUNU_MODEL_PATH, ACONSOLE_PATH):
         # create a socket for IPC
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            s.bind((self.IPC_ADDR, self.IPC_PORT))
-            s.listen(10)
-            print('[Info] Aimsun Manager Ready. Waiting For Aimsun Instance...')
+        # with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        #     s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        #     s.bind((self.IPC_ADDR, self.IPC_PORT))
+        #     s.listen(10)
+        #     print('[Info] Aimsun Manager Ready. Waiting For Aimsun Instance...')
+        HOST = 'localhost'
+        PORT = 23000
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        s.bind((HOST, PORT))
+        s.listen(10)
+        print('[Info] Aimsun Manager Ready. Waiting For Aimsun Instance...')
+        process = Popen(['"aconsole.exe"', '-v', '-log',
+                            '-project', AIMSUNU_MODEL_PATH,
+                            '-cmd', 'execute', '-target', '1180681'], executable=ACONSOLE_PATH)
+        conn, addr = s.accept()
+        print('Connected by', addr)
+        repID = 1180681
+        sync_message = 'SYN' + str(repID)
+        conn.send(bytes(sync_message, 'utf-8'))
+        data = conn.recv(1024).decode("utf-8")
+        if data != "SYN":
+            print("[ERROR] Handshake Failed.")
+        else:
+            print("[Info] Aimsun Instance connected.")
 
-            # num_episodes = episode
-            for i_episode in range(start_rep, end_rep + 1):
-                # Initialize the environment and state
-                status, conn = self.start_aimsun_instance(s, i_episode)
-                if not status:
-                    continue
+        # get state
+        # conn.send(b'GET_STATE')
+        # data = conn.recv(1024).decode("utf-8")
+        # if(data == 'FIN'):
+        #     print("FIN Received")
+        #     return
+        # elif(data[:10] != 'DATA_READY'):
+        #     print("ERROR")
+        #     return
+        # else:
+        #     time = data[10:]
+        #     state = np.load('realtime_state.npy')
+        #     print(state.shape)
+        #     print("Time: " + time)
 
-                self.reset()
-                state = self._get_state(conn, i_episode)
+        state, time = self._get_state(conn)
+        # num_episodes = episode
+        for i_episode in range(start_rep, end_rep + 1):
+            # Initialize the environment and state
+            for t in count():
+                # Select and perform an action
+                action = DQN.select_action(state)
+                # TODO: fetching reward
+                reward, done = self.step(conn, action.item())
+                reward = torch.tensor([reward], device=DQN.device)
+                # Observe new state
+                if not done:
+                    next_state, time = self._get_state(conn)
+                else:
+                    next_state = None
 
-                for t in count():
-                    # Select and perform an action
-                    action = DQN.select_action(state)
-                    reward, done = self.step(conn, action.item())
-                    reward = torch.tensor([reward], device=DQN.device)
+                # Store the transition in memory
+                DQN.memory.push(state, action, next_state, reward)
+                # Move to the next state
+                state = next_state
+                # Perform one step of the optimization (on the target network)
+                DQN.optimize_model()
+                if done:
+                    break
+            # Update the target network, copying all weights and biases in DQN
+            TARGET_UPDATE = DQN.config['TARGET_UPDATE']
+            if i_episode % TARGET_UPDATE == 0:
+                DQN.update()
 
-                    # Observe new state
-                    # last_screen = current_screen
-                    # current_screen = self.get_screen()
-                    if not done:
-                        next_state = self._get_state(conn, i_episode)
-                    else:
-                        next_state = None
-
-                    # Store the transition in memory
-                    DQN.memory.push(state, action, next_state, reward)
-
-                    # Move to the next state
-                    state = next_state
-
-                    # Perform one step of the optimization (on the target network)
-                    DQN.optimize_model()
-                    if done:
-                        break
-                # Update the target network, copying all weights and biases in DQN
-                TARGET_UPDATE = DQN.config['TARGET_UPDATE']
-                if i_episode % TARGET_UPDATE == 0:
-                    DQN.update()
-
-            print('Complete')
-            self.close()
+        print('Complete')
+        self.close()

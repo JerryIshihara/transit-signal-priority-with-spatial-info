@@ -2,12 +2,13 @@ import os
 import time
 import argparse
 parser = argparse.ArgumentParser()
-parser.add_argument("-env", "--env", help="DQN Environment")
+parser.add_argument("-e", "--env", default="AIMSUN", help="DQN Environment")
 args = parser.parse_args()
 
 from model import CNN, DQN
 from environment import CartPoleEnv
 from environment import AimsunEnv
+from environment import run
 
 import torch
 import torch.nn.functional as F
@@ -35,6 +36,9 @@ AIMSUN_CONFIG = {
     'ACTION_SPACE':  '', # TODO: Change action space'
     'HISTORY':       '' # number of channels
 }
+
+AIMSUN_MODEL_PATH = 'C:\\Users\\siwei\\Documents\\Developer\\aimsun\\finchTSPs_3 intx_west_Subnetwork 1171379.ang'
+ACONSOLE_PATH = "C:\\Program Files\\Aimsun\\Aimsun Next 8.3\\aconsole.exe"
 
 if __name__ == "__main__":
     loss = F.smooth_l1_loss
@@ -64,5 +68,5 @@ if __name__ == "__main__":
         
         cnn = CNN(screen_height, screen_width, n_actions, channels)
         DQN = DQN(CONFIG, cnn, loss, optimizer)
-        ENV.train_aimsun(DQN, start_rep, end_rep)
+        ENV.train_aimsun(DQN, start_rep, end_rep, AIMSUN_MODEL_PATH, ACONSOLE_PATH)
         
