@@ -63,7 +63,7 @@ if __name__ == "__main__":
         CONFIG['ACTION_SPACE'] = n_actions
         
         # TODO: fill the variables
-        channels, screen_height, screen_width, n_actions = 8, 8, 179, 1
+        channels, screen_height, screen_width, n_actions = 8, 8, 179, 2
         start_rep, end_rep = 1180681, 1180701
         
         cnn = CNN(screen_height, screen_width, n_actions, channels)
