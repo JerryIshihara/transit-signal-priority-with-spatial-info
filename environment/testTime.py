@@ -593,6 +593,7 @@ def AAPIPostManage(time, timeSta, timTrans, SimStep):
                         total_reward += delta_total_reward
 
             print("Send reward info " + str(total_reward))
+            sendmsg("REWARD - " + str(total_reward))
             log_row_list.append(str(total_reward))
         else:
             log_row_list.append(str("--"))

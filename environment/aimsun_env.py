@@ -9,6 +9,7 @@ import sys
 import inspect
 import socket
 from subprocess import Popen, PIPE
+from _thread import start_new_thread
 
 current_dir = os.path.dirname(os.path.abspath(
     inspect.getfile(inspect.currentframe())))
@@ -48,31 +49,10 @@ class AimsunEnv:
         self.num_step      = 0
         self.num_channels  = config['HISTORY']
 
-    def _get_reward(self, conn):
-        """Receive, log and return the new reward
 
-        Returns
-        -------
-        float
-            newly received reward
-        """
-        # receive from REWARD_LOG
-        is_read = False
-        while not is_read:
-            try:
-                f = open(self.REWARD_LOG, "r")
-                data = f.read()
-                f.close()
-                data = data.split()
-                if len(data) != REWARD_INPUT_LEN:
-                    continue
-                reward, new_flag = float(data[0]), int(data[1])
-                if new_flag != self.reward_flag:
-                    is_read = True
-                    self.reward_flag = new_flag
-            except:
-                continue
-        return reward
+    def reward_recv_thread(conn):
+        data = conn.recv(1024).decode("utf-8")
+        print(data)
 
     def _write_action(self, conn, index):
         """write the newly received action to Aimsun
@@ -131,8 +111,11 @@ class AimsunEnv:
             new state, new reward, and simulation finish
         """
         done = None
+        t = start_new_thread(reward_recv_thread, (conn,))
+
         self._write_action(conn, action_index)
-        reward = self._get_reward(conn)
+        print("Wait for reward")
+        t.join()
         # print log
         return reward, done
 
