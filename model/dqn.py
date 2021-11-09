@@ -6,7 +6,7 @@ import math
 
 class DQN:
     def __init__(self, config, network, loss, optimizer):
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.device = torch.device("cpu") # "cuda" if torch.cuda.is_available() else 
         self.memory = ReplayMemory(config['REPLAY'])
         self.policy_net = network.to(self.device)
         self.target_net = network.to(self.device)

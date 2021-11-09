@@ -170,3 +170,8 @@ results/
 # dataset
 dataset/*
 !dataset/.gitkeep
+
+# temp files
+environment/realtime_state.npy
+environment/action.npy
+Aimsun_Log_1180681.csv
