@@ -3,6 +3,7 @@ import time
 import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("-e", "--env", default="AIMSUN", help="DQN Environment")
+parser.add_argument("-l", "--load", default=False, help="If Load DQN Model")
 args = parser.parse_args()
 
 from model import CNN, DQN
@@ -32,8 +33,9 @@ AIMSUN_CONFIG = {
     'INSTANCE_PATH': 'C:\\Program Files\\Aimsun\\Aimsun Next 8.3\\Aimsun Next.exe',
     'ANG_PATH'     : 'C:\\Users\\siwei\\Documents\\Developer\\aimsun\\finchTSPs_3 intx_west_Subnetwork 1171379.ang',
     'ACTION_LOG':    'C:\\Users\\siwei\\Documents\\Developer\\transit-signal-priority-with-spatial-info\\environment\\action.npy',
+    'DQN_MODEL':     'C:\\Users\\siwei\\Documents\\Developer\\transit-signal-priority-with-spatial-info\\model\\model.npy',
     'REWARD_LOG':    '',
-    'ACTION_SPACE':  '', # TODO: Change action space'
+    'ACTION_SPACE':  2, # TODO: Change action space'
     'HISTORY':       '' # number of channels
 }
 
@@ -67,6 +69,9 @@ if __name__ == "__main__":
         start_rep, end_rep = 1180681, 1180701
         
         cnn = CNN(screen_height, screen_width, n_actions, channels)
+        if args.load:
+            cnn = cnn.load_state_dict(torch.load(AIMSUN_CONFIG["DQN_MODEL"]))
+        cnn = cnn.to(torch.double)
         DQN = DQN(CONFIG, cnn, loss, optimizer)
         ENV.train_aimsun(DQN, start_rep, end_rep, AIMSUN_MODEL_PATH, ACONSOLE_PATH)
         

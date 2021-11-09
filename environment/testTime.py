@@ -357,7 +357,6 @@ def threaded_client(s):
             globalLock.release()
         elif data[:13] == "WRITE_ACTION:":
             threadCommMsg = data[13:]
-
             globalLock.release()
     print("FIN flag received")
     s.close()
@@ -382,11 +381,12 @@ def AAPIInit():
 
     globalLock.acquire()
     start_new_thread(threaded_client, (globalSocket,))
-    globalLock.acquire()
+    # globalLock.acquire()
     return 0
 
 
 def AAPIManage(time, timeSta, timTrans, SimStep):
+    # print("[AIMSUN DEBUG] AAPIManage")
     global globalLock
     global global_data_flow
 
@@ -430,6 +430,7 @@ def decode_action():
         return False
 
 def AAPIPostManage(time, timeSta, timTrans, SimStep):
+    # print("[AIMSUN DEBUG] AAPIPostManage")
     global global_data_flow
     global g_logFile
 
@@ -531,7 +532,7 @@ def AAPIPostManage(time, timeSta, timTrans, SimStep):
                 # This is to cover the bus which comes in detected, but missed in check out.
                 # Needs to fill the closing reward here.
                 if (last_bus_out == time):
-                    print("Bus out not captured by reward")
+                    # print("Bus out not captured by reward")
                     if global_data_flow.busOutNotCapturedHeadway[road_seg_idx] == -1:
                         global_data_flow.busOutNotCapturedHeadway[road_seg_idx] = global_data_flow.head_way[road_seg_idx]
 
@@ -561,7 +562,7 @@ def AAPIPostManage(time, timeSta, timTrans, SimStep):
                 
                 reward_list.append(reward)
 
-            print(reward_list)
+            # print(reward_list)
             log_row_list.append(str(reward_list))
             log_row_list.append(str(global_data_flow.lastTimestepHeadway))
             total_reward = 0
@@ -592,7 +593,7 @@ def AAPIPostManage(time, timeSta, timTrans, SimStep):
                     else:
                         total_reward += delta_total_reward
 
-            print("Send reward info " + str(total_reward))
+            # print("[AIMSUN] Send reward info " + str(total_reward))
             sendmsg("REWARD - " + str(total_reward))
             log_row_list.append(str(total_reward))
         else:
@@ -612,11 +613,14 @@ def AAPIPostManage(time, timeSta, timTrans, SimStep):
             global_data_flow.lastTimestepHeadway = [i for i in global_data_flow.head_way] # Need to perform deep copy
             global_data_flow.requestReward = True
 
-            print("Bus in interested range and in interested phase " + str(time))
+            # print("Bus in interested range and in interested phase " + str(time))
+            globalLock.acquire()
+            # print("[Aimsun] Send DATA_READY")
             sendmsg("DATA_READY - " + str(time))
             # wait for action ready
-            globalLock.acquire()
-            globalLock.acquire()
+
+            # globalLock.acquire()
+            
 
             # Check for possible traffic light extension
             pdur = doublep()
@@ -666,8 +670,8 @@ def AAPIPostManage(time, timeSta, timTrans, SimStep):
         # else:
         #     global_data_flow.requestReward = False
             # print("no notification")
-    else:
-        print("Data not ready. Continue...")
+    # else:
+    #     print("Data not ready. Continue...")
 
     # print("====== Cycle End ======")
     g_logFile.write(",".join(log_row_list) + "\n")
